@@ -70,7 +70,7 @@ lazy val root = rootProject
       "ch.qos.logback"     % "logback-classic"           % logbackVersion
     ),
     testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
-    Compile / mainClass := Some("com.example.icebergflyway.MigrateApp"),
+    Compile / mainClass := Some("com.example.icebergflyway.MigrateMain"),
     // Hadoop registers JVM shutdown hooks that break inside sbt's in-process classloader.
     Compile / run / fork := true,
     // Fork tests so Test / envVars reaches Testcontainers.

@@ -64,7 +64,7 @@ Per that skill: cellar for **external** dependency APIs, Metals `inspect` for ev
 
 ## Layout
 
-- `src/main/scala/com/example/icebergflyway/` – application code, entry point is `MigrateApp` (a decline `CommandIOApp` with the commands `migrate` and `stamp`); `migration/` holds the Flyway/Iceberg glue, `migrations/` the versioned migrations, `model/` the case classes the apps share, `iceberg/` schema derivation and catalog helpers
+- `src/main/scala/com/example/icebergflyway/` – application code, entry point is `MigrateMain`, a one-liner extending the generic `migration.MigrateApp` (a decline `CommandIOApp` with the commands `migrate` and `stamp`) with this set's `Migrations.all` and `Tables.all`; `migration/` holds the Flyway/Iceberg glue, `migrations/` the versioned migrations, `model/` the case classes the apps share, `iceberg/` schema derivation and catalog helpers
 - `src/test/scala/com/example/icebergflyway/` – weaver suites, one `object ... extends SimpleIOSuite` per file
 - `src/main/resources/application.conf` – configuration, loaded by `MigrationConfig.load`
 - `.claude/skills/` – detailed guides for weaver and cellar

@@ -70,7 +70,7 @@ Per that skill: cellar for **external** dependency APIs, Metals `inspect` for ev
 - `.claude/skills/` – detailed guides for ScalaTest and cellar
 - `.claude/settings.json` – allows `sbt`, `scalafmt`, `cellar`, `cs` and `metals-mcp` without prompts
 - `.github/workflows/ci.yml` – CI runs the same format check, tests and coverage as below
-- `.github/workflows/release.yml` – `sbt ci-release` on pushes to `main` (snapshot) and `v*` tags (release)
+- `.github/workflows/release.yml` – `sbt ci-release` on pushes to `no-cats-effect` (the default branch; snapshot) and `v*` tags (release)
 
 ## Commands
 

@@ -112,6 +112,48 @@ Things to know:
 - Migrations are plain Scala with cats-effect and decline for the CLI; there is no Flink
   runtime or Kafka in this project, the apps bring their own.
 
+## Copying this into a project
+
+The repositories this is meant for hold Flink apps next to their migrations, with case classes
+shared between both. Suggested layout: an sbt subproject `migrations` with its own main class and
+Docker image, depending on the subproject that holds the shared case classes.
+
+Copy as is (generic, no project knowledge inside):
+
+- `migration/` – `IcebergMigration`, `SchemaStamp`, `IcebergFlyway`
+- `iceberg/` – `IcebergSchemas`, `IcebergData`, `IcebergCatalogs`
+- `MigrationConfig.scala`, `MigrateApp.scala`, the `migration` section of `application.conf`,
+  `logback.xml`
+- from `build.sbt`: the dependency block (Flyway, Iceberg, Hadoop, aws, rowdata4s plus
+  `flink-table-api-java`), `Compile / mainClass`, the fork and Testcontainers settings and the
+  Docker settings. Keep `iceberg-flink-<version>` and `flink-table-api-java` on the Flink
+  version the apps use.
+- tests: `IcebergCatalogsSuite` as it is; `MigrationSuite` as the template for the project's
+  own end-to-end test (swap in its tables and models). `IcebergMigrationSuite` tests the
+  helpers themselves and only needs to travel with them.
+
+Own per project:
+
+- `model/` – the case classes the apps and migrations share, and `Tables` with `Tables.all`
+  (the list the pre-flight drift check runs over)
+- `migrations/` – the `V<n>__...` classes and `Migrations.all`
+- `flyway.schema` (one per migration set when several share a database) and the Docker image name
+
+If more than one repository needs the generic part, publish `migration/` and `iceberg/` as a
+small library instead of copying; this build already has sbt-ci-release wired up. Projects then
+depend on it and only write models and migrations.
+
+### Why a main class instead of the Flyway CLI
+
+Flyway does ship a command line tool (also as the `flyway/flyway` Docker image) and it can run
+Java migrations from jars dropped into its `jars/` folder. It does not fit here: the CLI
+instantiates Java migrations by classpath scanning through a no-arg constructor, so the Iceberg
+`Catalog` could not be injected; the whole Iceberg, Hadoop and AWS classpath would have to be
+copied into the CLI's folder; and the pre-flight drift check, the `stamp` repair and the
+pureconfig configuration would have no place to run. Embedding Flyway through its Java API in a
+small main is the usual approach when migrations are code with dependencies of their own
+(Spring Boot does the same at startup); the CLI shines for plain SQL migrations.
+
 ## Configuration
 
 `src/main/resources/application.conf`, section `migration`, loaded by `MigrationConfig`:

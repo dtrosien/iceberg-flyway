@@ -1,0 +1,12 @@
+{
+  "enableAllProjectMcpServers": true,
+  "permissions": {
+    "allow": [
+      "Bash(sbt:*)",
+      "Bash(scalafmt:*)",
+      "Bash(cellar:*)",
+      "Bash(cs:*)",
+      "Bash(metals-mcp:*)"
+    ]
+  }
+}

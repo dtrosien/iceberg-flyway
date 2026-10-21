@@ -1,0 +1,12 @@
+target/
+.bsp/
+.metals/
+.bloop/
+.vscode/
+.idea/
+.DS_Store
+.cellar/cache/
+.env
+.env.local
+.claude/settings.local.json
+metals.sbt

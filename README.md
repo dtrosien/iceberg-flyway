@@ -1,7 +1,8 @@
 # iceberg-flyway
 
 Proof of concept: versioned migrations for Apache Iceberg tables with Flyway (Apache 2.0
-community edition only) and the Iceberg Java API, on cats-effect.
+community edition only) and the Iceberg Java API, on cats-effect IO. The default branch
+`no-cats-effect` has the same code without an effect runtime.
 
 ## How it works
 
@@ -279,7 +280,7 @@ request.
 ## Release
 
 The version comes from git tags via sbt-ci-release: pushing `vX.Y.Z` publishes a
-release, pushes to `main` publish snapshots. `.github/workflows/release.yml` needs the
+release, pushes to `no-cats-effect` (the default branch) publish snapshots. `.github/workflows/release.yml` needs the
 `PGP_PASSPHRASE`, `PGP_SECRET`, `SONATYPE_USERNAME` and `SONATYPE_PASSWORD` secrets;
 see the [sbt-ci-release](https://github.com/sbt/sbt-ci-release) README.
 

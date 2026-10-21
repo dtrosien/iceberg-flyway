@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [no-cats-effect] # the default branch publishes snapshots; both branches share the artifact name
     tags: ["v*"]
 
 jobs:

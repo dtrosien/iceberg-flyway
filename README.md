@@ -1,7 +1,8 @@
 # iceberg-flyway
 
 Proof of concept: versioned migrations for Apache Iceberg tables with Flyway (Apache 2.0
-community edition only) and the Iceberg Java API, on cats-effect.
+community edition only) and the Iceberg Java API. This branch has no effect system: the code
+is plain synchronous Scala (cats-core and decline only); see `main` for the cats-effect version.
 
 ## How it works
 
@@ -37,8 +38,8 @@ provide that. So Flyway talks to PostgreSQL only for bookkeeping, and every migr
 - `migrations/Migrations.all` – the explicit list of migration instances. Flyway gets them via
   `javaMigrations(...)`; classpath scanning is switched off, so nothing runs by accident.
 - `migration/IcebergFlyway` – configures Flyway (`dataSource`, a schema of its own for the
-  history table) and wraps `migrate`, `validate` and `info` in `IO`. Flyway invokes migrations synchronously, so a
-  migration body is a plain side effect by contract.
+  history table) and exposes `migrate`, `validate` and `info`. Failures propagate as
+  exceptions, so `MigrateApp` exits non-zero.
 - `iceberg/IcebergSchemas.schemaFor[T]` – case class to Iceberg `Schema`:
   [flink-rowdata4s](https://github.com/dtrosien/flink-rowdata4s) derives the Flink `DataType`,
   `FlinkSchemaUtil` from iceberg-flink converts it. `Option[A]` becomes an optional column,
@@ -57,7 +58,7 @@ and seed `app.countries` from a snapshot (`V3`) and set table properties on `use
 Migrations that create tables use snapshots
 (`UserV1`, `CountryV3`) because Java migrations have no checksum: if they used the live model,
 changing the model would silently change what the migration does on a fresh environment.
-`MigrationSuite` asserts that after all migrations the table matches the model the apps use,
+`MigrationTest` asserts that after all migrations the table matches the model the apps use,
 column order included, which is the check to keep in a real repository.
 
 ### Changing a model
@@ -109,8 +110,8 @@ Things to know:
   rowdata4s (`RowData`) is not covered here.
 - Hadoop stays on the classpath because Iceberg's Parquet writer needs
   `org.apache.hadoop.conf.Configuration`, and the local default catalog is a Hadoop catalog.
-- Migrations are plain Scala with cats-effect and decline for the CLI; there is no Flink
-  runtime or Kafka in this project, the apps bring their own.
+- Migrations are plain Scala with decline for the CLI; there is no Flink runtime or Kafka in
+  this project, the apps bring their own.
 
 ## Configuration
 
@@ -158,7 +159,7 @@ The target setup is an ECS Fargate one-off task started by CI after the image is
   (the shaded AWS SDK) are on the classpath. The task role needs Glue database/table
   permissions and read/write on the warehouse bucket; credentials and region come from the
   task's environment through the SDK's default provider chain. Nothing in this repo talks to
-  AWS, so the Glue path is only verified by loading `S3FileIO` in `IcebergCatalogsSuite`.
+  AWS, so the Glue path is only verified by loading `S3FileIO` in `IcebergCatalogsTest`.
 - Packaging: sbt-native-packager builds a Docker image on `eclipse-temurin:21-jre`:
 
   ```
@@ -177,11 +178,11 @@ The target setup is an ECS Fargate one-off task started by CI after the image is
 
 ## Tests
 
-`MigrationSuite` starts `postgres:alpine` with Testcontainers (Ryuk is disabled in
+`MigrationTest` starts `postgres:alpine` with Testcontainers (Ryuk is disabled in
 `build.sbt`, the suite stops its container itself) and uses Iceberg's `InMemoryCatalog`.
-`IcebergMigrationSuite` covers the table helpers without Flyway: stamps, column order,
+`IcebergMigrationTest` covers the table helpers without Flyway: stamps, column order,
 idempotency and the drift failure plus `stamp` repair.
-`IcebergCatalogsSuite` builds a Hadoop catalog on an os-lib temp directory and removes it
+`IcebergCatalogsTest` builds a Hadoop catalog on an os-lib temp directory and removes it
 afterwards. Tests run in a forked JVM so the Testcontainers setting in `build.sbt` applies.
 
 ## Test and format
@@ -193,7 +194,8 @@ sbt "coverage; testFull; coverageReport"      # tests with a coverage report
 sbt --server --batch "scalafmtSbtCheck; scalafmtCheckAll; coverage; testFull; coverageReport"   # what CI runs
 ```
 
-Tests use [weaver](https://github.com/typelevel/weaver-test). Formatting is defined in
+Tests use [ScalaTest](https://www.scalatest.org/) in the flink-rowdata4s style (`UnitSpec`).
+Formatting is defined in
 `.scalafmt.conf`, and `.github/workflows/ci.yml` runs the same checks on every push and pull
 request.
 
@@ -207,7 +209,7 @@ see the [sbt-ci-release](https://github.com/sbt/sbt-ci-release) README.
 ## Working with coding agents
 
 - `AGENTS.md` holds the project instructions; `CLAUDE.md` imports it for Claude Code.
-- `.claude/skills/` documents weaver and the `cellar` CLI.
+- `.claude/skills/` documents ScalaTest and the `cellar` CLI.
 - `.mcp.json` starts a Metals MCP server (`metals-mcp`, installed with `cs install metals-mcp`)
   when Claude Code opens the project; `.claude/settings.json` allows the build tools
   without prompts.

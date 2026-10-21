@@ -1,22 +1,24 @@
 package com.example.icebergflyway
 
 import cats.data.NonEmptyList
-import cats.effect.*
-import cats.syntax.all.*
 import com.example.icebergflyway.iceberg.IcebergCatalogs
 import com.example.icebergflyway.migration.{IcebergFlyway, SchemaStamp}
 import com.example.icebergflyway.migrations.Migrations
 import com.example.icebergflyway.model.Tables
-import com.monovore.decline.Opts
-import com.monovore.decline.effect.CommandIOApp
+import com.monovore.decline.{CommandApp, Opts}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 
 /** `migrate` applies pending migrations and exits; `stamp` is the repair path after a table was
-  * changed outside of migrations.
+  * changed outside of migrations. Failures propagate as exceptions, so the process exits non-zero.
   */
 object MigrateApp
-    extends CommandIOApp(name = "iceberg-flyway", header = "Flyway migrations for Iceberg tables"):
+    extends CommandApp(
+      name = "iceberg-flyway",
+      header = "Flyway migrations for Iceberg tables",
+      main = Commands.all
+    )
 
+private object Commands:
   private val migrateCommand = Opts.subcommand(
     "migrate",
     "Apply pending migrations; fails if a managed table was changed outside of migrations"
@@ -27,27 +29,24 @@ object MigrateApp
     "Record the current schema of the given tables (e.g. app.users) as the migrated state"
   )(Opts.arguments[String]("table"))
 
-  def main: Opts[IO[ExitCode]] = migrateCommand.as(migrate) orElse stampCommand.map(stamp)
+  val all: Opts[Unit] =
+    migrateCommand.map(_ => withCatalog(migrate)) orElse
+      stampCommand.map(tables => withCatalog((_, catalog) => stamp(tables, catalog)))
 
-  private def withCatalog(run: (MigrationConfig, Catalog) => IO[Unit]): IO[ExitCode] =
-    MigrationConfig.load
-      .flatMap(config => IcebergCatalogs.resource(config.iceberg).use(run(config, _)))
-      .as(ExitCode.Success)
+  private def withCatalog(run: (MigrationConfig, Catalog) => Unit): Unit =
+    val config = MigrationConfig.load()
+    IcebergCatalogs.withCatalog(config.iceberg)(run(config, _))
 
-  private val migrate: IO[ExitCode] = withCatalog { (config, catalog) =>
-    for
-      _      <- SchemaStamp.verifyAll(catalog, Tables.all)
-      flyway <- IcebergFlyway(config.flyway, Migrations.all(catalog))
-      result <- flyway.migrate
-      // targetSchemaVersion is null when nothing was pending; the initial version is current then
-      version = Option(result.targetSchemaVersion).orElse(Option(result.initialSchemaVersion))
-      _ <- IO.println(
-        s"Applied ${result.migrationsExecuted} migration(s), schema version ${version.getOrElse("none")}"
-      )
-    yield ()
-  }
+  private def migrate(config: MigrationConfig, catalog: Catalog): Unit =
+    SchemaStamp.verifyAll(catalog, Tables.all)
+    val result = IcebergFlyway(config.flyway, Migrations.all(catalog)).migrate()
+    // targetSchemaVersion is null when nothing was pending; the initial version is current then
+    val version = Option(result.targetSchemaVersion).orElse(Option(result.initialSchemaVersion))
+    println(
+      s"Applied ${result.migrationsExecuted} migration(s), schema version ${version.getOrElse("none")}"
+    )
 
-  private def stamp(tables: NonEmptyList[String]): IO[ExitCode] = withCatalog { (_, catalog) =>
+  private def stamp(tables: NonEmptyList[String], catalog: Catalog): Unit =
     val ids = tables.toList.map(TableIdentifier.parse)
-    SchemaStamp.stampAll(catalog, ids) *> IO.println(s"Stamped ${ids.mkString(", ")}")
-  }
+    SchemaStamp.stampAll(catalog, ids)
+    println(s"Stamped ${ids.mkString(", ")}")

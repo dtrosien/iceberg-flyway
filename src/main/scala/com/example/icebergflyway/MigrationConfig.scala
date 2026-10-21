@@ -1,6 +1,5 @@
 package com.example.icebergflyway
 
-import cats.effect.IO
 import pureconfig.*
 
 /** JDBC connection for Flyway's schema history. Flyway creates and owns `schema`; one schema per
@@ -20,5 +19,4 @@ final case class MigrationConfig(flyway: FlywayConfig, iceberg: IcebergCatalogCo
 
 object MigrationConfig:
   /** Loads the `migration` section of `application.conf`; env vars override via `${?VAR}`. */
-  def load: IO[MigrationConfig] =
-    IO(ConfigSource.default.at("migration").loadOrThrow[MigrationConfig])
+  def load(): MigrationConfig = ConfigSource.default.at("migration").loadOrThrow[MigrationConfig]

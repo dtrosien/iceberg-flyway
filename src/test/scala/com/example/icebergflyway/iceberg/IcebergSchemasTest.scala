@@ -1,21 +1,20 @@
 package com.example.icebergflyway.iceberg
 
+import com.example.icebergflyway.UnitSpec
 import com.example.icebergflyway.iceberg.IcebergSchemas.Column
 import com.example.icebergflyway.model.User
-import weaver.*
 
-object IcebergSchemasSuite extends SimpleIOSuite:
+class IcebergSchemasTest extends UnitSpec:
 
-  pureTest("User derives the expected Iceberg columns") {
-    val expected = List(
+  "IcebergSchemas" should "derive the expected Iceberg columns for User" in {
+    IcebergSchemas.columns(IcebergSchemas.schemaFor[User]) shouldBe List(
       Column("id", "long", optional = false),
       Column("name", "string", optional = false),
       Column("email", "string", optional = true),
       Column("created_at", "timestamptz", optional = false)
     )
-    expect.same(expected, IcebergSchemas.columns(IcebergSchemas.schemaFor[User]))
   }
 
-  pureTest("@TableComment becomes the column doc") {
-    expect(IcebergSchemas.schemaFor[User].findField("id").doc == "primary key")
+  it should "turn @TableComment into the column doc" in {
+    IcebergSchemas.schemaFor[User].findField("id").doc shouldBe "primary key"
   }

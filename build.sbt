@@ -17,9 +17,9 @@ developers := List(
   )
 )
 
-val catsEffectVersion     = "3.7.1"
+val catsVersion           = "2.13.0"
 val declineVersion        = "2.6.2"
-val weaverVersion         = "0.12.0"
+val scalatestVersion      = "3.2.19"
 val pureconfigVersion     = "0.17.10"
 val flywayVersion         = "12.10.0"
 val icebergVersion        = "1.11.0"
@@ -42,8 +42,8 @@ lazy val root = rootProject
       "-Wunused:all"
     ),
     libraryDependencies ++= Seq(
-      "org.typelevel"         %% "cats-effect"     % catsEffectVersion,
-      "com.monovore"          %% "decline-effect"  % declineVersion,
+      "org.typelevel"         %% "cats-core"       % catsVersion,
+      "com.monovore"          %% "decline"         % declineVersion,
       "com.github.pureconfig" %% "pureconfig-core" % pureconfigVersion,
       // Flyway (Apache 2.0 modules only) keeps its history table in Postgres.
       "org.flywaydb"   % "flyway-core"                % flywayVersion,
@@ -64,12 +64,11 @@ lazy val root = rootProject
       // parquet-hadoop needs Hadoop's Configuration on the classpath.
       "org.apache.hadoop"  % "hadoop-client-api"         % hadoopVersion,
       "org.apache.hadoop"  % "hadoop-client-runtime"     % hadoopVersion         % Runtime,
-      "org.typelevel"     %% "weaver-cats"               % weaverVersion         % Test,
+      "org.scalatest"     %% "scalatest"                 % scalatestVersion      % Test,
       "com.lihaoyi"       %% "os-lib"                    % osLibVersion          % Test,
       "org.testcontainers" % "testcontainers-postgresql" % testcontainersVersion % Test,
       "ch.qos.logback"     % "logback-classic"           % logbackVersion
     ),
-    testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
     Compile / mainClass := Some("com.example.icebergflyway.MigrateApp"),
     // Hadoop registers JVM shutdown hooks that break inside sbt's in-process classloader.
     Compile / run / fork := true,

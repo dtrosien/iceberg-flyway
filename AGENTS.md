@@ -1,6 +1,6 @@
 # iceberg-flyway
 
-Flyway migrations for Apache Iceberg tables (cats-effect, weaver tests)
+Flyway migrations for Apache Iceberg tables (plain synchronous Scala, ScalaTest)
 
 ## Overview over the project
 read `README.md` if available
@@ -54,20 +54,20 @@ Per that skill: cellar for **external** dependency APIs, Metals `inspect` for ev
 
 - Scala 3.9.0 (Scala 3 syntax: indentation-based, `given`/`using`, `enum`, `extension`)
 - sbt 2.0.9 (sbt 2)
-- cats-effect 3.7.1 and decline-effect 2.6.2 (CLI)
+- cats-core 2.13.0 and decline 2.6.2 (CLI); no effect system, code is synchronous
 - pureconfig 0.17.10 (`pureconfig-core`; Scala 3 `derives ConfigReader`)
 - Flyway 12.10.0 (`flyway-core`, `flyway-database-postgresql`; Apache 2.0 features only), PostgreSQL JDBC
 - Apache Iceberg 1.11.0 (`core`, `data`, `parquet`, `flink-1.20`, `aws`, `aws-bundle`), Hadoop client 3.4.3
 - flink-rowdata4s 0.2.0 with flink-table-api-java 1.20.3 (case class to Flink/Iceberg schema)
-- Tests: weaver 0.12.0 (`weaver-cats`), Testcontainers 2.0.5 (Java), os-lib, logback
+- Tests: ScalaTest 3.2.19 (`UnitSpec` = AnyFlatSpec + should.Matchers), Testcontainers 2.0.5 (Java), os-lib, logback
 - sbt plugins: sbt-scalafmt, sbt-scoverage (coverage), sbt-ci-release (publishing, git-based versions), sbt-native-packager (Docker image)
 
 ## Layout
 
-- `src/main/scala/com/example/icebergflyway/` – application code, entry point is `MigrateApp` (a decline `CommandIOApp` with the commands `migrate` and `stamp`); `migration/` holds the Flyway/Iceberg glue, `migrations/` the versioned migrations, `model/` the case classes the apps share, `iceberg/` schema derivation and catalog helpers
-- `src/test/scala/com/example/icebergflyway/` – weaver suites, one `object ... extends SimpleIOSuite` per file
+- `src/main/scala/com/example/icebergflyway/` – application code, entry point is `MigrateApp` (a decline `CommandApp` with the commands `migrate` and `stamp`); `migration/` holds the Flyway/Iceberg glue, `migrations/` the versioned migrations, `model/` the case classes the apps share, `iceberg/` schema derivation and catalog helpers
+- `src/test/scala/com/example/icebergflyway/` – ScalaTest suites, one `class ...Test extends UnitSpec` per file
 - `src/main/resources/application.conf` – configuration, loaded by `MigrationConfig.load`
-- `.claude/skills/` – detailed guides for weaver and cellar
+- `.claude/skills/` – detailed guides for ScalaTest and cellar
 - `.claude/settings.json` – allows `sbt`, `scalafmt`, `cellar`, `cs` and `metals-mcp` without prompts
 - `.github/workflows/ci.yml` – CI runs the same format check, tests and coverage as below
 - `.github/workflows/release.yml` – `sbt ci-release` on pushes to `main` (snapshot) and `v*` tags (release)
@@ -78,8 +78,8 @@ Per that skill: cellar for **external** dependency APIs, Metals `inspect` for ev
 sbt compile                              # compile main sources
 sbt test                                 # incremental: failed, new or affected tests only
 sbt testFull                             # run all tests
-sbt "testOnly com.example.icebergflyway.migration.MigrationSuite"   # run one suite
-sbt "testOnly *MigrationSuite -- -o *seeded*"   # weaver: only tests whose "Suite.name" matches the glob
+sbt "testOnly com.example.icebergflyway.migration.MigrationTest"   # run one suite
+sbt "testOnly *MigrationTest -- -z seed"   # ScalaTest: only tests whose name contains the text
 sbt "run migrate"                        # apply pending migrations (needs Postgres, see README)
 sbt Docker/publishLocal                  # build the Docker image for the Fargate task
 sbt scalafmtAll                          # format main and test sources
@@ -97,8 +97,9 @@ failure. Use `testFull` when you need every test executed.
 
 ## Conventions
 
-- All effects go through `cats.effect.IO`. Keep side effects out of pure code.
-- Add a weaver test for every new behaviour; use `pureTest` when no IO is needed.
+- No effect system: code is synchronous and failures propagate as exceptions, like Flyway and
+  Iceberg themselves. Release resources with `try`/`finally` or `scala.util.Using`.
+- Add a ScalaTest test for every new behaviour (`class ...Test extends UnitSpec`).
 - Never set `version`, `publishTo` or `credentials` in `build.sbt`: sbt-ci-release
   derives the version from git tags (`vX.Y.Z`) and handles publishing.
 - Keep dependency versions in `build.sbt`.

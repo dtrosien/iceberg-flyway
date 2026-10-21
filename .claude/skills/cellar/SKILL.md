@@ -81,7 +81,7 @@ cellar search-external org.typelevel:cats-core_3:2.10.0 flatMap
 cellar get-source org.typelevel:cats-core_3:2.10.0 cats.Monad
 
 # Dependency tree
-cellar deps org.typelevel:cats-effect_3:3.5.4
+cellar deps org.flywaydb:flyway-core:12.10.0
 
 # sbt plugin (use full Scala + sbt suffix)
 cellar deps org.scala-native:sbt-scala-native_2.12_1.0:latest
@@ -101,15 +101,11 @@ here. Use the `-external` commands with the coordinates from `build.sbt`.
 Transitive dependencies are resolved:
 
 ```sh
-cellar get-external org.typelevel:cats-effect_3:3.7.1 cats.effect.IO
-cellar get-external org.typelevel:weaver-cats_3:0.12.0 weaver.MutableIOSuite
+cellar get-external org.scalatest:scalatest_3:3.2.19 org.scalatest.flatspec.AnyFlatSpec
 cellar get-external org.flywaydb:flyway-core:12.10.0 org.flywaydb.core.api.migration.BaseJavaMigration
 cellar list-external org.apache.iceberg:iceberg-api:1.11.0 org.apache.iceberg.catalog
 ```
 
-`weaver.SimpleIOSuite` and `weaver.IOSuite` are type aliases in weaver's
-package object and cellar cannot resolve them. Look up the underlying traits
-`weaver.SimpleMutableIOSuite` and `weaver.MutableIOSuite` instead.
 
 ## Example output
 

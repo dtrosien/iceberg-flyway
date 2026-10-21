@@ -1,7 +1,5 @@
 package com.example.icebergflyway.migration
 
-import cats.effect.IO
-import cats.syntax.all.*
 import com.example.icebergflyway.iceberg.IcebergSchemas
 import org.apache.iceberg.{PartitionSpec, Schema, Table, Transaction}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
@@ -47,18 +45,16 @@ object SchemaStamp:
     if !recorded.contains(actual) then throw TableDriftException(id, recorded, actual)
 
   /** Pre-flight check for every registered table that exists and is managed. */
-  def verifyAll(catalog: Catalog, tables: List[TableIdentifier]): IO[Unit] =
-    tables.traverse_ { id =>
-      IO.blocking {
-        if catalog.tableExists(id) then
-          val table = catalog.loadTable(id)
-          if isStamped(table) then verify(id, table)
-      }
+  def verifyAll(catalog: Catalog, tables: List[TableIdentifier]): Unit =
+    tables.foreach { id =>
+      if catalog.tableExists(id) then
+        val table = catalog.loadTable(id)
+        if isStamped(table) then verify(id, table)
     }
 
   /** Accepts the current state of the tables as the migrated state (the repair path). */
-  def stampAll(catalog: Catalog, tables: List[TableIdentifier]): IO[Unit] =
-    tables.traverse_(id => IO.blocking(stamp(catalog.loadTable(id))))
+  def stampAll(catalog: Catalog, tables: List[TableIdentifier]): Unit =
+    tables.foreach(id => stamp(catalog.loadTable(id)))
 
 final class TableDriftException(id: TableIdentifier, recorded: Option[String], actual: String)
     extends RuntimeException(

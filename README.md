@@ -121,10 +121,10 @@ Docker image, depending on the subproject that holds the shared case classes.
 
 Copy as is (generic, no project knowledge inside):
 
-- `migration/` – `IcebergMigration`, `SchemaStamp`, `IcebergFlyway`
+- `migration/` – `IcebergMigration`, `SchemaStamp`, `IcebergFlyway`, `MigrateApp` (the generic
+  CLI main)
 - `iceberg/` – `IcebergSchemas`, `IcebergData`, `IcebergCatalogs`
-- `MigrationConfig.scala`, `MigrateApp.scala`, the `migration` section of `application.conf`,
-  `logback.xml`
+- `MigrationConfig.scala`, the `migration` section of `application.conf`, `logback.xml`
 - from `build.sbt`: the dependency block (Flyway, Iceberg, Hadoop, aws, rowdata4s plus
   `flink-table-api-java`), `Compile / mainClass`, the fork and Testcontainers settings and the
   Docker settings. Keep `iceberg-flink-<version>` and `flink-table-api-java` on the Flink
@@ -138,11 +138,48 @@ Own per project:
 - `model/` – the case classes the apps and migrations share, and `Tables` with `Tables.all`
   (the list the pre-flight drift check runs over)
 - `migrations/` – the `V<n>__...` classes and `Migrations.all`
+- the main object, one line: `object MigrateMain extends MigrateApp(Migrations.all, Tables.all)`
 - `flyway.schema` (one per migration set when several share a database) and the Docker image name
 
 If more than one repository needs the generic part, publish `migration/` and `iceberg/` as a
 small library instead of copying; this build already has sbt-ci-release wired up. Projects then
 depend on it and only write models and migrations.
+
+### Multi-project repositories
+
+For a build with several apps and shared model modules, keep one migration set per app (or per
+model, see below) as its own subproject:
+
+```
+root
+├── models/model1, models/model2
+├── apps/app1, apps/app2 (→ model1), apps/app3 (→ model2)      # built with sbt-assembly
+├── iceberg-migrations                                          # the generic part of this repo
+└── migrations/app1, migrations/app2 (→ iceberg-migrations, model1)
+    migrations/app3 (→ iceberg-migrations, model2)
+```
+
+- Each `migrations/<app>` holds its `V<n>__...` classes, `Migrations.all`, `Tables.all`, an
+  `application.conf` with its own `flyway.schema` (one Flyway schema per set, all in the same
+  Postgres database) and `object MigrateMain extends MigrateApp(Migrations.all, Tables.all,
+  name = "app1-migrations")`.
+- Migration subprojects depend on the model modules, never on the app modules, so no Flink
+  runtime or Kafka ends up on their classpath.
+- **One owner per table.** app1 and app2 share model1; if they also share tables, exactly one
+  migration set must own each table, otherwise two Flyway histories evolve it and the stamp
+  reports each other's commits as drift. Either assign shared tables to one app, or give shared
+  models a migration set of their own. `Tables.all` makes the ownership explicit.
+- Pipeline per app: build, run that app's migration job (`java -jar app1-migrations.jar migrate`
+  or the Docker image), then deploy the app. Sets do not block each other; Flyway's lock is per
+  history table.
+- Building the migration jars with sbt-assembly needs three merge rules, otherwise the jar starts
+  but misbehaves: concatenate `META-INF/services/*` (`MergeStrategy.filterDistinctLines`; both
+  flyway-core and flyway-database-postgresql ship
+  `META-INF/services/org.flywaydb.core.extensibility.Plugin`, and Iceberg, Jackson 3 and the AWS
+  bundle also use service files), discard `module-info.class` and `META-INF/*.SF|*.DSA|*.RSA`, and
+  take `first` for Hadoop's duplicated resource files such as `core-default.xml`. Using
+  sbt-native-packager for the migration subprojects only, as this repo does, avoids the merge
+  rules.
 
 ### Why a main class instead of the Flyway CLI
 
